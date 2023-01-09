@@ -3,8 +3,8 @@
 //connection function
 function connectionToSql(){
     //connect to the database
-    $db_name = "id19986393_sensordata";
-    $user_name = "id19986393_sensorgoesbrr";
+    $db_name = "id20123142_senorgobrrr";
+    $user_name = "id20123142_senorbaby";
     $password = "Projectwork24680.";
     $server_name = "localhost";
     $conn = mysqli_connect($server_name, $user_name, $password, $db_name);
