@@ -3,6 +3,7 @@
 #include "MQ135m.h"
 #include "DHT.h"
 #include <HTTPClient.h>
+#include "ThingSpeak.h"
 
 #define Board "ESP32"
 #define Pin_mq4 35
@@ -18,8 +19,6 @@
 #define DHTPIN 14     
 #define DHTTYPE DHT22
 
-#define redled 12
-#define greenled 13
 
 DHT dht(DHTPIN, DHTTYPE);
 MQUnifiedsensor MQ4(Board, Voltage_Resolution, ADC_Bit_Resolution, Pin_mq4, Type_mq4);
@@ -29,28 +28,25 @@ float CH4;
 float temp;
 float hum;
 
-const char *ssid = "Elden Ring";      // replace with your wifi ssid and wpa2 key
-const char *pass = "Potatowifi24680.";
+unsigned long myChannelNumber = 1;
+const char * myWriteAPIKey = "6Y3ZVQVGBXUK4XEW";
+
+unsigned long lastTime = 0;
+unsigned long timerDelay = 30000;
+
+const char *ssid = "ELMEKAWY 1624";      // replace with your wifi ssid and wpa2 key
+const char *pass = "C2w8815@";
 HTTPClient http;
+WiFiClient  client;
 
 void setup() {
-  pinMode(redled, OUTPUT);
-  pinMode(greenled, OUTPUT);
-  pinMode(32,INPUT);
 
   Serial.begin(9600);
   dht.begin();
 
-  //WIFI **********************************
-  Serial.println("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, pass);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
+  WiFi.mode(WIFI_STA);
+
+  ThingSpeak.begin(client);
 
   //**************************************
    //MQ135 *********************************
@@ -83,53 +79,83 @@ float calcR01 = 0;
 }
 
 void loop() {
- 
-  //MQ135 ********************************
-  int adc = 0;
-  for(int i=0; i<8;i++){
-  adc += analogRead(mq135_pin);
-  }
-  adc = adc/8;
-  CO2 = read_CO2(esp32_sample_rate,adc);
-  Serial.print("CO2_PPM:  ");
-  Serial.println(CO2);
- 
+  if ((millis() - lastTime) > timerDelay) {
 
-  // *************************************
-
-  //MQ4 **********************************
-  CH4=0;
-  int avg = 0;
-  for(int i=0; i<3;i++){
-    MQ4.update(); // Update data, the arduino will read the voltage from the analog pin
-    avg += MQ4.readSensor(); 
-    delay(20);
-  }
-  CH4 = avg/10;
-  Serial.print("CH4_PPM:  ");
-  Serial.println(CH4);  
-  //**************************************
+    //WIFI **********************************
+    if(WiFi.status() != WL_CONNECTED){
+      Serial.print("Attempting to connect");
+      while(WiFi.status() != WL_CONNECTED){
+        WiFi.begin(ssid, pass); 
+        delay(5000);     
+      } 
+      Serial.println("\nConnected.");
+    }
   
-  //DHT22 ********************************
-  temp =  dht.readHumidity();   
-  hum= dht.readTemperature(); 
-  temp =  dht.readHumidity();   
-  Serial.print("temp:");
-  Serial.println(temp);
-  Serial.print("hum:");
-  Serial.println(hum);
-  Serial.println("*****           *****");  
+    //MQ135 ********************************
+    int adc = 0;
+    for(int i=0; i<8;i++){
+    adc += analogRead(mq135_pin);
+    }
+    adc = adc/8;
+    CO2 = read_CO2(esp32_sample_rate,adc);
+    Serial.print("CO2_PPM:  ");
+    Serial.println(CO2);
+  
 
- //Sending Data *****************************
-  //Check WiFi connection status
-  String URL = "https://whatthefuckisthisshit.000webhostapp.com/index.php?request_type=add&temp="+String(temp)+"&hum="+String(hum)+"&co2="+String(CO2)+"&ch4="+String(CH4);
-  if (WiFi.status()== WL_CONNECTED) {
-    bool http_begin = http.begin(URL);
-    String payload_request = "";//Combine the name and value
-    http.addHeader("Content-Type", "application/x-www-form-uU rlencoded");
-    int httpResponseCode = http.sendRequest("GET", payload_request);
-    String payload_response = http.getString();
-    Serial.println(payload_response);
-    delay(1000);
+    // *************************************
+
+    //MQ4 **********************************
+    CH4=0;
+    int avg = 0;
+    for(int i=0; i<3;i++){
+      MQ4.update(); // Update data, the arduino will read the voltage from the analog pin
+      avg += MQ4.readSensor(); 
+      delay(20);
+    }
+    CH4 = avg/10;
+    Serial.print("CH4_PPM:  ");
+    Serial.println(CH4);  
+    //**************************************
+    
+    //DHT22 ********************************
+    hum =  dht.readHumidity();   
+    temp= dht.readTemperature();   
+    Serial.print("temp:");
+    Serial.println(temp);
+    Serial.print("hum:");
+    Serial.println(hum);
+    Serial.println("*****           *****");  
+  
+
+  //Sending Data *****************************
+    //Check WiFi connection status
+    String URL = "https://gwi12327.000webhostapp.com/database.php?request_type=add&temp="+String(temp)+"&hum="+String(hum)+"&co2="+String(CO2)+"&ch4="+String(CH4);
+    if (WiFi.status()== WL_CONNECTED) {
+      bool http_begin = http.begin(URL);
+      String payload_request = "";//Combine the name and value
+      http.addHeader("Content-Type", "application/x-www-form-uU rlencoded");
+      int httpResponseCode = http.sendRequest("GET", payload_request);
+      String payload_response = http.getString();
+      Serial.println(payload_response);
+    }
+
+  //Graphs *****************************
+    // Write to ThingSpeak 
+    ThingSpeak.setField(1, temp);
+    ThingSpeak.setField(2, hum);
+    ThingSpeak.setField(3, CO2);
+    ThingSpeak.setField(4, CH4);
+    
+    int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+
+    if(x == 200){
+      Serial.println("Channel update successful.");
+    }
+    else{
+      Serial.println("Problem updating channel. HTTP error code " + String(x));
+    }
+    Serial.println("................................................................................");
+    lastTime = millis();
   }
+
 }
