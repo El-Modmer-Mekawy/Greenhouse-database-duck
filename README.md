@@ -1,6 +1,6 @@
 # Global warming Inspectorem
 This res contains all the code for the GWI.
-You can find more info by visting our website: https://gwi12327.000webhostapp.com/
+You can find more info by visting our website: https://gwi12327.000webhostapp.com/ 
 # Background:
 With the rapid increase of global warming mainly due to the increase in greenhouse gases, it became important to study and monitor those increases and the relation between them. We - a team of three seniors - decided to tackle this problem by building an automated IoT system that can collect data about the temperature, humidity, and CO2, store it and methane and display it live for small regions. We believe that this system could help scientists monitor global warming in small areas and use the data to improve scientific research towards solving global warming. 
 # How to use:
